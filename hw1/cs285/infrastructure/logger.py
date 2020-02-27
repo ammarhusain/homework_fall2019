@@ -24,6 +24,7 @@ class Logger:
 
     def log_video(self, video_frames, name, step, fps=10):
         assert len(video_frames.shape) == 5, "Need [N, T, C, H, W] input tensor for video logging!"
+        print (",,,,,,,,,,", name)
         self._summ_writer.add_video('{}'.format(name), video_frames, step, fps=fps)
 
     def log_paths_as_videos(self, paths, step, max_videos_to_save=2, fps=10, video_title='video'):
@@ -46,6 +47,7 @@ class Logger:
 
         # log videos to tensorboard event file
         videos = np.stack(videos[:max_videos_to_save], 0)
+        print ("...... logging ", video_title)
         self.log_video(videos, video_title, step, fps=fps)
 
     def log_figures(self, figure, name, step, phase):
@@ -68,7 +70,3 @@ class Logger:
 
     def flush(self):
         self._summ_writer.flush()
-
-
-
-
