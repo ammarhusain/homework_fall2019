@@ -41,7 +41,10 @@ def sample_trajectory(env, policy, max_path_length, render=False, render_mode=('
         rewards.append(rew)
 
         # HINT: rollout can end due to done, or due to max_path_length
-        rollout_done = done or steps >= max_path_length # HINT: this is either 0 or 1
+        if done or steps > max_path_length:
+            rollout_done = 1 # HINT: this is either 0 or 1
+        else:
+            rollout_done = 0
         terminals.append(rollout_done)
 
         if rollout_done:
@@ -59,7 +62,7 @@ def sample_trajectories(env, policy, min_timesteps_per_batch, max_path_length, r
     timesteps_this_batch = 0
     paths = []
     while timesteps_this_batch < min_timesteps_per_batch:
-      path  = sample_trajectory(env, policy, max_path_length)
+      path  = sample_trajectory(env, policy, max_path_length, render, render_mode)
       timesteps_this_batch += get_pathlength(path)
       paths.append(path)
 

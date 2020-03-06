@@ -40,8 +40,11 @@ class RL_Trainer(object):
         self.env = gym.make(self.params['env_name'])
         self.env.seed(seed)
 
+        print("ep_len: ", self.params['ep_len'])
+        print("env_max: ", self.env.spec.max_episode_steps)
         # Maximum length for episodes
         self.params['ep_len'] = self.params['ep_len'] or self.env.spec.max_episode_steps
+        print("ep_len: ", self.params['ep_len'])
 
         # Is this env continuous, or self.discrete?
         discrete = isinstance(self.env.action_space, gym.spaces.Discrete)
@@ -52,7 +55,10 @@ class RL_Trainer(object):
         ac_dim = self.env.action_space.n if discrete else self.env.action_space.shape[0]
         self.params['agent_params']['ac_dim'] = ac_dim
         self.params['agent_params']['ob_dim'] = ob_dim
-
+        print("action_space ", self.env.action_space)
+        print("observation_space ", self.env.observation_space)
+        print("ac_dim ", ac_dim)
+        print("ob_dim ", ob_dim)
         # simulation timestep, will be used for video saving
         if 'model' in dir(self.env):
             self.fps = 1/self.env.model.opt.timestep
@@ -71,7 +77,8 @@ class RL_Trainer(object):
         #############
 
         ## HINT: use global_variables_initializer
-        self.sess.run(tf.global_variables_initializer())
+        #AH: self.sess.run(tf.global_variables_initializer())
+        tf.global_variables_initializer().run(session=self.sess)
 
     def run_training_loop(self, n_iter, collect_policy, eval_policy,
                         initial_expertdata=None, relabel_with_expert=False,
@@ -121,7 +128,7 @@ class RL_Trainer(object):
             self.agent.add_to_replay_buffer(paths)
 
             # train agent (using sampled data from replay buffer)
-            self.train_agent()
+            loss = self.train_agent()
 
             # log/save
             if self.log_video or self.log_metrics:
@@ -156,19 +163,20 @@ class RL_Trainer(object):
 
                 # collect data, batch_size is the number of transitions you want to collect.
         if itr == 0:
-          pkl_f = open(load_initial_expertdata,"rb")
-          loaded_paths = pickle.load(pkl_f)
-          return loaded_paths, 0, None
-        else:
-          # HINT1: use sample_trajectories from utils
-          # HINT2: you want each of these collected rollouts to be of length self.params['ep_len']
-          print("\nCollecting data to be used for training...")
-          paths, envsteps_this_batch = sample_trajectories(self.env, collect_policy, batch_size, self.params['ep_len'])
+          if load_initial_expertdata is not None:
+            pkl_f = open(load_initial_expertdata,"rb")
+            loaded_paths = pickle.load(pkl_f)
+            return loaded_paths, 0, None
 
-          # collect more rollouts with the same policy, to be saved as videos in tensorboard
-          # note: here, we collect MAX_NVIDEO rollouts, each of length MAX_VIDEO_LEN
-          train_video_paths = None
-          if self.log_video:
+        # HINT1: use sample_trajectories from utils
+        # HINT2: you want each of these collected rollouts to be of length self.params['ep_len']
+        print("\nCollecting data to be used for training...")
+        paths, envsteps_this_batch = sample_trajectories(self.env, collect_policy, batch_size, self.params['ep_len'])
+
+        # collect more rollouts with the same policy, to be saved as videos in tensorboard
+        # note: here, we collect MAX_NVIDEO rollouts, each of length MAX_VIDEO_LEN
+        train_video_paths = None
+        if self.log_video:
             print('\nCollecting train rollouts to be used for saving videos...')
             train_video_paths = sample_n_trajectories(self.env, collect_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
 
@@ -186,6 +194,8 @@ class RL_Trainer(object):
             # HINT: use the agent's train function
             # HINT: print or plot the loss for debugging!
             loss =  self.agent.train(ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch)
+
+        return loss
 
     def do_relabel_with_expert(self, expert_policy, paths):
         print("\nRelabelling collected observations with labels from an expert policy...")

@@ -85,10 +85,7 @@ class MLPPolicy(BasePolicy):
         # HINT1: you will need to call self.sess.run
         # HINT2: the tensor we're interested in evaluating is self.sample_ac
         # HINT3: in order to run self.sample_ac, it will need observation fed into the feed_dict
-        # AH: Do this weird reshape to get tensor in the right shape (?,111)
-        obs_t = np.array(obs).reshape(-1,obs.shape[0])
-
-        return self.sess.run(self.sample_ac, feed_dict={self.observations_pl: obs_t})
+        return self.sess.run(self.sample_ac, feed_dict={self.observations_pl: observation})
 
     # update/train this policy
     def update(self, observations, actions):
