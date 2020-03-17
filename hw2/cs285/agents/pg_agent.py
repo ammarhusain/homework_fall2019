@@ -68,7 +68,7 @@ class PGAgent(BaseAgent):
         advantage_values = self.estimate_advantage(obs, q_values)
 
         # step 3:
-        # TODO: pass the calculated values above into the actor/policy's update,
+        # pass the calculated values above into the actor/policy's update,
         # which will perform the actual PG update step
         loss = self.actor.update(obs, acs, qvals=q_values, adv_n=advantage_values)
         return loss
@@ -116,14 +116,14 @@ class PGAgent(BaseAgent):
             Computes advantages by (possibly) subtracting a baseline from the estimated Q values
         """
 
-        # TODO: Estimate the advantage when nn_baseline is True
+        # Estimate the advantage when nn_baseline is True
         # HINT1: pass obs into the neural network that you're using to learn the baseline
             # extra hint if you're stuck: see your actor's run_baseline_prediction
         # HINT2: advantage should be [Q-b]
         if self.nn_baseline:
-            b_n_unnormalized = TODO
+            b_n_unnormalized = self.actor.run_baseline_prediction(obs)
             b_n = b_n_unnormalized * np.std(q_values) + np.mean(q_values)
-            adv_n = TODO
+            adv_n = [q_i - b_n_i for q_i, b_n_i in zip(q_values, b_n)]
 
         # Else, just set the advantage to [Q]
         else:
