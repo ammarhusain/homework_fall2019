@@ -7,18 +7,18 @@ import tensorflow_probability as tfp
 class MLPPolicy(BasePolicy):
 
     def __init__(self,
-        sess,
-        ac_dim,
-        ob_dim,
-        n_layers,
-        size,
-        learning_rate=1e-4,
-        training=True,
-        policy_scope='policy_vars',
-        discrete=False, # unused for now
-        nn_baseline=False, # unused for now
-        **kwargs):
-        super().__init__(**kwargs)
+                 sess,
+                 ac_dim,
+                 ob_dim,
+                 n_layers,
+                 size,
+                 learning_rate=1e-4,
+                 training=True,
+                 policy_scope='policy_vars',
+                 discrete=False, # unused for now
+                 nn_baseline=False, # unused for now
+                 **kwargs):
+      super().__init__(**kwargs)
 
         # init vars
         self.sess = sess
@@ -33,7 +33,7 @@ class MLPPolicy(BasePolicy):
 
         # build TF graph
         with tf.variable_scope(policy_scope, reuse=tf.AUTO_REUSE):
-            self.build_graph()
+          self.build_graph()
 
         # saver for policy variables that are not related to training
         self.policy_vars = [v for v in tf.all_variables() if policy_scope in v.name and 'train' not in v.name]
@@ -42,14 +42,14 @@ class MLPPolicy(BasePolicy):
     ##################################
 
     def build_graph(self):
-        self.define_placeholders()
-        self.define_forward_pass()
-        self.build_action_sampling()
+      self.define_placeholders()
+      self.define_forward_pass()
+      self.build_action_sampling()
         if self.training:
             with tf.variable_scope('train', reuse=tf.AUTO_REUSE):
                 if self.nn_baseline:
-                    self.build_baseline_forward_pass()
-                self.define_train_op()
+                  self.build_baseline_forward_pass()
+                  self.define_train_op()
 
     ##################################
 
@@ -58,45 +58,45 @@ class MLPPolicy(BasePolicy):
 
     def define_forward_pass(self):
         if self.discrete:
-            logits_na = build_mlp(self.observations_pl, output_size=self.ac_dim, scope='discrete_logits', n_layers=self.n_layers, size=self.size)
-            self.parameters = logits_na
+          logits_na = build_mlp(self.observations_pl, output_size=self.ac_dim, scope='discrete_logits', n_layers=self.n_layers, size=self.size)
+          self.parameters = logits_na
         else:
-            mean = build_mlp(self.observations_pl, output_size=self.ac_dim, scope='continuous_logits', n_layers=self.n_layers, size=self.size)
-            logstd = tf.Variable(tf.zeros(self.ac_dim), name='logstd')
-            self.parameters = (mean, logstd)
+          mean = build_mlp(self.observations_pl, output_size=self.ac_dim, scope='continuous_logits', n_layers=self.n_layers, size=self.size)
+          logstd = tf.Variable(tf.zeros(self.ac_dim), name='logstd')
+          self.parameters = (mean, logstd)
 
     def build_action_sampling(self):
         if self.discrete:
-            logits_na = self.parameters
-            self.sample_ac = tf.squeeze(tf.multinomial(logits_na, num_samples=1), axis=1)
+          logits_na = self.parameters
+          self.sample_ac = tf.squeeze(tf.multinomial(logits_na, num_samples=1), axis=1)
         else:
-            mean, logstd = self.parameters
-            self.sample_ac = mean + tf.exp(logstd) * tf.random_normal(tf.shape(mean), 0, 1)
+          mean, logstd = self.parameters
+          self.sample_ac = mean + tf.exp(logstd) * tf.random_normal(tf.shape(mean), 0, 1)
 
     def define_train_op(self):
         raise NotImplementedError
 
     def define_log_prob(self):
         if self.discrete:
-            #log probability under a categorical distribution
+          #log probability under a categorical distribution
             logits_na = self.parameters
             self.logprob_n = tf.distributions.Categorical(logits=logits_na).log_prob(self.actions_pl)
         else:
-            #log probability under a multivariate gaussian
+          #log probability under a multivariate gaussian
             mean, logstd = self.parameters
             self.logprob_n = tfp.distributions.MultivariateNormalDiag(
                 loc=mean, scale_diag=tf.exp(logstd)).log_prob(self.actions_pl)
 
     def build_baseline_forward_pass(self):
-        self.baseline_prediction = tf.squeeze(build_mlp(self.observations_pl, output_size=1, scope='nn_baseline', n_layers=self.n_layers, size=self.size))
+      self.baseline_prediction = tf.squeeze(build_mlp(self.observations_pl, output_size=1, scope='nn_baseline', n_layers=self.n_layers, size=self.size))
 
     ##################################
 
     def save(self, filepath):
-        self.policy_saver.save(self.sess, filepath, write_meta_graph=False)
+      self.policy_saver.save(self.sess, filepath, write_meta_graph=False)
 
     def restore(self, filepath):
-        self.policy_saver.restore(self.sess, filepath)
+      self.policy_saver.restore(self.sess, filepath)
 
     ##################################
 
@@ -107,33 +107,115 @@ class MLPPolicy(BasePolicy):
     # query the neural net that's our 'policy' function, as defined by an mlp above
     # query the policy with observation(s) to get selected action(s)
     def get_action(self, obs):
-
-        # TODO: GETTHIS from HW1
-
-#####################################################
-#####################################################
-
-# class MLPPolicySL(MLPPolicy):
-
-    # TODO: GETTHIS from HW1 (or comment it out, since you don't need it for this homework)
+        if len(obs.shape)>1:
+          observation = obs
+        else:
+          observation = obs[None]
+        return self.sess.run(self.sample_ac, feed_dict={self.observations_pl : observation})
 
 #####################################################
 #####################################################
 
 class MLPPolicyPG(MLPPolicy):
-    # TODO: GETTHIS from HW2
+
+    def define_placeholders(self):
+       # placeholder for observations
+        self.observations_pl = tf.placeholder(shape=[None, self.ob_dim], name="ob", dtype=tf.float32)
+        # placeholder for actions
+        if self.discrete:
+          self.actions_pl = tf.placeholder(shape=[None], name="ac", dtype=tf.int32)
+        else:
+          self.actions_pl = tf.placeholder(shape=[None, self.ac_dim], name="ac", dtype=tf.float32)
+
+        if self.training:
+          # placeholder for advantage
+            self.adv_n = tf.placeholder(shape=[None], name="adv", dtype=tf.float32)
+            if self.nn_baseline:
+              # targets for baseline
+                self.targets_n = tf.placeholder(shape=[None], name="baseline_target", dtype=tf.float32)
+
+    #########################
+
+    def define_train_op(self):
+        # define the log probability of seen actions/observations under the current policy
+        self.define_log_prob()
+
+        # define the loss that should be optimized when training a policy with policy gradient
+        self.loss = tf.reduce_sum(-self.logprob_n * self.adv_n)
+
+        # define what exactly the optimizer should minimize when updating the policy
+        self.train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
+
+        if self.nn_baseline:
+            # define the loss that should be optimized for training the baseline
+            self.baseline_loss = tf.losses.mean_squared_error(self.targets_n, self.baseline_prediction)
+
+            # define what exactly the optimizer should minimize when updating the baseline
+            self.baseline_update_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.baseline_loss)
+
+    #########################
+
+    def run_baseline_prediction(self, obs):
+
+        # query the neural net that's our 'baseline' function, as defined by an mlp above
+        if len(obs.shape)>1:
+          observation = obs
+        else:
+          observation = obs[None]
+        return self.sess.run(self.baseline_prediction, feed_dict={self.observations_pl: observation})
+
+    def update(self, observations, acs_na, adv_n=None, acs_labels_na=None, qvals=None):
+      assert(self.training, 'Policy must be created with training=True in order to perform training updates...')
+
+        _, loss = self.sess.run([self.train_op, self.loss], feed_dict={self.observations_pl: observations, self.actions_pl: acs_na, self.adv_n: adv_n})
+
+        if self.nn_baseline:
+          targets_n = (qvals - np.mean(qvals))/(np.std(qvals)+1e-8)
+          # update the nn baseline with the targets_n
+          self.sess.run(self.baseline_update_op, feed_dict={self.observations_pl: observations, self.targets_n: targets_n})
+        return loss
 
 #####################################################
 #####################################################
 
 class MLPPolicyAC(MLPPolicyPG):
-    """ MLP policy required for actor-critic.
+  """ MLP policy required for actor-critic.
 
     Note: Your code for this class could in fact the same as MLPPolicyPG, except the neural net baseline
     would not be required (i.e. self.nn_baseline would always be false. It is separated here only
-    to avoid any unintended errors. 
+    to avoid any unintended errors.
     """
     def __init__(self, *args, **kwargs):
         if 'nn_baseline' in kwargs.keys():
-            assert kwargs['nn_baseline'] == False, "MLPPolicyAC should not use the nn_baseline flag"
-        super().__init__(*args, **kwargs)
+          assert kwargs['nn_baseline'] == False, "MLPPolicyAC should not use the nn_baseline flag"
+          super().__init__(*args, **kwargs)
+
+
+#####################################################
+#####################################################
+
+class MLPPolicySL(MLPPolicy):
+    """
+        This class is a special case of MLPPolicy,
+        which is trained using supervised learning.
+    """
+
+    def define_placeholders(self):
+        # placeholder for observations
+        self.observations_pl = tf.placeholder(shape=[None, self.ob_dim], name="ob", dtype=tf.float32)
+        # placeholder for actions
+        self.actions_pl = tf.placeholder(shape=[None, self.ac_dim], name="ac", dtype=tf.float32)
+        if self.training:
+            self.acs_labels_na = tf.placeholder(shape=[None, self.ac_dim], name="labels", dtype=tf.float32)
+
+    def define_train_op(self):
+        true_actions = self.acs_labels_na
+        predicted_actions = self.sample_ac
+
+        # define the loss that will be used to train this policy
+        self.loss = tf.losses.mean_squared_error(true_actions, predicted_actions)
+        self.train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
+
+    def update(self, observations, actions):
+        assert(self.training, 'Policy must be created with training=True in order to perform training updates...')
+        self.sess.run(self.train_op, feed_dict={self.observations_pl: observations, self.acs_labels_na: actions})
