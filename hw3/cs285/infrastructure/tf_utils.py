@@ -20,7 +20,8 @@ def build_mlp(input_placeholder, output_size, scope, n_layers, size, activation=
 
 def create_tf_session(use_gpu, gpu_frac=0.6, allow_gpu_growth=True, which_gpu=0):
     if use_gpu:
-        # gpu options
+      print("Setting up with GPU")
+      # gpu options
         gpu_options = tf.GPUOptions(
             per_process_gpu_memory_fraction=gpu_frac,
             allow_growth=allow_gpu_growth)

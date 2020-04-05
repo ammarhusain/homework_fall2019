@@ -111,7 +111,9 @@ class RL_Trainer(object):
         self.total_envsteps = 0
         self.start_time = time.time()
 
+        print("n_iter ", n_iter)
         for itr in range(n_iter):
+            #if itr
             #print("\n\n********** Iteration %i ************"%itr)
 
             # decide if videos should be rendered/logged at this iteration
@@ -191,7 +193,7 @@ class RL_Trainer(object):
 
     def train_agent(self):
 
-        print('\nTraining agent using sampled data from replay buffer...')
+        #print('\nTraining agent using sampled data from replay buffer...')
         for train_step in range(self.params['num_agent_train_steps_per_iter']):
             # sample some data from the data buffer
             ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch = self.agent.sample(self.params['train_batch_size'])
